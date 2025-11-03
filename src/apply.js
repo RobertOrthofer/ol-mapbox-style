@@ -371,6 +371,15 @@ export function applyStyle(
                 );
               }
             }
+            let layerProperty;
+            const source = layer.getSource();
+            if (source instanceof VectorTileSource) {
+              //@ts-ignore
+              if (source.format_ instanceof MVT) {
+                //@ts-ignore
+                layerProperty = source.format_.layerName_;
+              }
+            }
             style = applyStylefunction(
               layer,
               glStyle,
@@ -381,6 +390,7 @@ export function applyStyle(
               (fonts, templateUrl = options.webfonts) =>
                 getFonts(fonts, templateUrl),
               options.getImage,
+              layerProperty,
             );
             if (!layer.getStyle()) {
               reject(new Error(`Nothing to show for source [${sourceId}]`));
@@ -1463,6 +1473,7 @@ export function addMapboxLayer(mapOrGroup, mapboxLayer, beforeLayerId) {
  * Update a Mapbox Layer object in the style. The map will be re-rendered with the new style.
  * @param {Map|LayerGroup} mapOrGroup The Map or LayerGroup `apply` was called on.
  * @param {Object} mapboxLayer Updated Mapbox Layer object.
+ * @return {Promise<void>} Resolves when the layer has been updated.
  */
 export function updateMapboxLayer(mapOrGroup, mapboxLayer) {
   const glStyle = mapOrGroup.get('mapbox-style');
@@ -1491,9 +1502,18 @@ export function updateMapboxLayer(mapOrGroup, mapboxLayer) {
     ];
   if (args) {
     applyStylefunction.apply(undefined, args);
-  } else {
-    getLayer(mapOrGroup, mapboxLayer.id).changed();
+    return Promise.resolve();
   }
+  const layer = getLayer(mapOrGroup, mapboxLayer.id);
+  const {options, styleUrl} = mapOrGroup.get('mapbox-metadata');
+  return finalizeLayer(
+    layer,
+    [mapboxLayer.id],
+    glStyle,
+    styleUrl,
+    mapOrGroup,
+    options,
+  );
 }
 
 /**
